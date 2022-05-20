@@ -1,0 +1,7 @@
+[webservers]
+centos_srv1 ansible_host=192.168.1.101
+centos_srv2 ansible_host=192.168.1.102
+centos_srv3 ansible_host=192.168.1.103
+
+[nginx]
+centos_srv1

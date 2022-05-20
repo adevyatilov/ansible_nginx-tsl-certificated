@@ -1,0 +1,60 @@
+- name: создание сертификата TLS на локальной машине
+  hosts: localhost
+  become: True
+  tasks:
+    - name: создание папки files
+      file:
+        name: files
+        state: directory
+
+    - name: создание сертификата TLS
+      command:
+        cmd: >
+          openssl req -x509 -nodes -days 3650 -newkey rsa:2048 -subj /CN=localhost 
+            -keyout files/nginx.key 
+            -out files/nginx.crt
+        creates: files/nginx.crt
+
+- name: Настройка конфигурации nginx и tls на CentOS
+  hosts: nginx
+  become: True
+  vars:
+    nginx_certificate_file: /etc/nginx/ssl/nginx.crt
+    nginx_certificate_key_file: /etc/nginx/ssl/nginx.key
+    nginx_config_file: /etc/nginx/sites-available/default
+    server_name: localhost
+  tasks:
+    - name: добавляем репозиторий EPEL
+      yum: name=epel-release update_cache=yes
+
+    - name: установка nginx
+      yum: name=nginx update_cache=yes
+
+    - name: создание директории для TLS сертификата
+      file: path=/etc/nginx/ssl/ state=directory
+
+    - name: копирование TLS ключа
+      copy: src=files/nginx.key dest={{ nginx_certificate_key_file }} owner=root mode=0600
+      notify: restart nginx
+
+    - name: копирование TLS сертификата
+      copy: src=files/nginx.crt dest={{ nginx_certificate_file }}
+      notify: restart nginx
+
+    - name: копирование конфигурационного файла nginx
+      template: src=templates/nginx.conf.j2 dest={{ nginx_config_file }}
+      notify: restart nginx
+
+    - name: создание папки под включенные конфигурации /etc/nginx/sites-enabled
+      file: path=/etc/nginx/sites-enabled state=directory
+
+    - name: включение конфиграций nginx
+      file: src={{ nginx_config_file }} dest=/etc/nginx/sites-enabled/default state=link
+      notify: restart nginx
+
+    - name: копирование файла index.html
+      template: src=templates/index.html.j2 dest=/usr/share/nginx/html/index.html mode=0644
+
+  handlers:
+    - name: restart nginx
+      service: name=nginx state=restarted
