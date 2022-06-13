@@ -24,11 +24,13 @@
     nginx_config_file: /etc/nginx/sites-available/default
     server_name: localhost
   tasks:
-    - name: добавляем репозиторий EPEL
-      yum: name=epel-release update_cache=yes
-
-    - name: установка nginx
-      yum: name=nginx update_cache=yes
+    - name: установка пакетов
+      yum:
+        name: "{{ item }}"
+      with_items:
+        - epel-release
+        - nginx
+      update_cache: yes
 
     - name: создание директории для TLS сертификата
       file: path=/etc/nginx/ssl/ state=directory
